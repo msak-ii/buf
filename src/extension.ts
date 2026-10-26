@@ -11,20 +11,33 @@ function hasUri(input: unknown): input is { uri: vscode.Uri } {
 }
 
 export function activate(context: vscode.ExtensionContext) {
-	let mruUriStrs: string[] = [];
+	// #region: bdelete
+	const bdeleteCommand = vscode.commands.registerCommand(
+		"buf.bdelete",
+		async () => {
+			const activeUri = vscode.window.activeTextEditor?.document.uri;
+			if (!activeUri) {
+				return;
+			}
 
-	const updateMru = vscode.window.onDidChangeActiveTextEditor((textEditor) => {
-		if (!textEditor) {
-			return;
-		}
+			const activeUriStr = activeUri.toString();
 
-		const uriStr = textEditor.document.uri.toString();
-		mruUriStrs = mruUriStrs.filter((uri) => uri.toString() !== uriStr);
-		mruUriStrs.unshift(uriStr);
-	});
+			for (const groups of vscode.window.tabGroups.all) {
+				for (const tab of groups.tabs) {
+					if (hasUri(tab.input)) {
+						if (tab.input.uri.toString() === activeUriStr) {
+							vscode.window.tabGroups.close(tab);
+						}
+					}
+				}
+			}
+		},
+	);
 
-	context.subscriptions.push(updateMru);
+	context.subscriptions.push(bdeleteCommand);
+	// #endregion: bdelete
 
+	// #region: pick
 	const pickCommand = vscode.commands.registerCommand("buf.pick", async () => {
 		const openedUriStrSet = new Set<string>();
 		for (const group of vscode.window.tabGroups.all) {
@@ -77,7 +90,9 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 	context.subscriptions.push(pickCommand);
+	// #endregion: pick
 
+	// #region: quit
 	const quitCommand = vscode.commands.registerCommand("buf.quit", async () => {
 		const groups = vscode.window.tabGroups;
 		if (groups.all.length <= 1) {
@@ -118,6 +133,23 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 	context.subscriptions.push(quitCommand);
+	// #endregion: quit
+
+	// #region: mru
+	let mruUriStrs: string[] = [];
+
+	const updateMru = vscode.window.onDidChangeActiveTextEditor((textEditor) => {
+		if (!textEditor) {
+			return;
+		}
+
+		const uriStr = textEditor.document.uri.toString();
+		mruUriStrs = mruUriStrs.filter((uri) => uri.toString() !== uriStr);
+		mruUriStrs.unshift(uriStr);
+	});
+
+	context.subscriptions.push(updateMru);
+	// #endregion: mru
 }
 
 export function deactivate() {}
